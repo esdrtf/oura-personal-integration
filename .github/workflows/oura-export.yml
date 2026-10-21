@@ -1,0 +1,68 @@
+name: Oura to Google Drive
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: 'Inclusive backfill start (YYYY-MM-DD); blank = incremental'
+        required: false
+        default: ''
+      end_date:
+        description: 'Exclusive backfill end; blank = tomorrow in America/New_York'
+        required: false
+        default: ''
+      verify_from:
+        description: 'Fail unless core daily records reach this date (YYYY-MM-DD)'
+        required: false
+        default: ''
+  schedule:
+    # 08:17 EDT / 07:17 EST, before the 09:00 Health Coach.
+    - cron: '17 12 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: oura-export
+    concurrency:
+      group: oura-drive-export
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Test migration, pagination, idempotency, and failure recovery
+        run: python3 -m unittest discover -s tests -v
+      - name: Export and verify Drive readback
+        env:
+          OURA_CLIENT_ID: ${{ secrets.OURA_CLIENT_ID }}
+          OURA_CLIENT_SECRET: ${{ secrets.OURA_CLIENT_SECRET }}
+          OURA_TOKEN_JSON: ${{ secrets.OURA_TOKEN_JSON }}
+          GH_SECRETS_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          DRIVE_FOLDER_ID: ${{ vars.DRIVE_FOLDER_ID }}
+          OURA_TIMEZONE: America/New_York
+          INPUT_START: ${{ inputs.start_date }}
+          INPUT_END: ${{ inputs.end_date }}
+          INPUT_VERIFY: ${{ inputs.verify_from }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=()
+          if [[ -n "$INPUT_START" ]]; then args+=(--start "$INPUT_START"); fi
+          if [[ -n "$INPUT_END" ]]; then args+=(--end "$INPUT_END"); fi
+          if [[ -n "$INPUT_VERIFY" ]]; then args+=(--verify-from "$INPUT_VERIFY"); fi
+          python3 export_oura.py "${args[@]}"
+      - name: Record outcome
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          printf 'Oura export: **%s**. See step logs for sanitized errors; Drive manifest is the data authority.\n' "$JOB_STATUS" >> "$GITHUB_STEP_SUMMARY"
+
