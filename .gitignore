@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.env
+.env.*
+tokens*.json
+credentials*.json
+client_secret*.json
+export-data/
+*.log
+
