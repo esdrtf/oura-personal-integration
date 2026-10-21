@@ -45,9 +45,9 @@ class ExportError(Exception):
 
 
 class HTTPFailure(ExportError):
-    def __init__(self, status):
+    def __init__(self, status, oauth_error=None):
         self.status = status
-        super().__init__(f"HTTP {status}")
+        super().__init__(f"HTTP {status}" + (f" ({oauth_error})" if oauth_error else ""))
 
 
 def utc_now():
@@ -82,7 +82,7 @@ def retry_delay(attempt, headers):
     return max(0, min(60, delay))
 
 
-def request(method, url, *, headers=None, body=None, attempts=5):
+def request(method, url, *, headers=None, body=None, attempts=5, oauth_errors=False):
     """Retries only safe/idempotent operations. OAuth rotation calls use attempts=1."""
     for attempt in range(attempts):
         try:
@@ -91,9 +91,22 @@ def request(method, url, *, headers=None, body=None, attempts=5):
                 return response.read(), dict(response.headers)
         except urllib.error.HTTPError as exc:
             status, response_headers = exc.code, exc.headers
+            oauth_error = None
+            if oauth_errors:
+                # Never expose descriptions or provider bodies: they may echo secrets.
+                try:
+                    code = json.loads(exc.read(16384)).get("error")
+                    if isinstance(code, str) and code in {
+                        "invalid_request", "invalid_client", "invalid_grant",
+                        "unauthorized_client", "unsupported_grant_type", "invalid_scope",
+                        "access_denied", "temporarily_unavailable", "server_error",
+                    }:
+                        oauth_error = code
+                except (ValueError, AttributeError, OSError):
+                    pass
             exc.close()
             if status not in (408, 429, 500, 502, 503, 504) or attempt + 1 == attempts:
-                raise HTTPFailure(status) from None
+                raise HTTPFailure(status, oauth_error) from None
         except (urllib.error.URLError, TimeoutError, ConnectionError):
             response_headers = {}
             if attempt + 1 == attempts:
@@ -106,7 +119,7 @@ def request(method, url, *, headers=None, body=None, attempts=5):
 def oauth(url, fields, *, attempts=1):
     data, _ = request("POST", url, body=urllib.parse.urlencode(fields).encode(),
                       headers={"Content-Type": "application/x-www-form-urlencoded"},
-                      attempts=attempts)
+                      attempts=attempts, oauth_errors=True)
     try:
         result = json.loads(data)
         if not result.get("access_token"):

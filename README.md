@@ -77,7 +77,7 @@ ChatGPT 的 Google Drive 连接授权不能直接拿给 GitHub Actions。需要�
 
 1. 在自己的 Google Cloud 项目启用 Drive API，配置 OAuth consent，创建 **Desktop app** 客户端并下载 JSON。
 2. 通过官方 OAuth 客户端流程取得用户离线授权（`access_type=offline`，必要时 `prompt=consent`）。现有旧目录需要相应读写 scope；普通 `drive.file` 只允许该应用创建/明确授权的文件，可能无法访问旧历史。若使用完整 `https://www.googleapis.com/auth/drive`，授权范围是该账户 Drive；脚本本身只操作配置的根目录。
-3. 外部 OAuth 应用若处于 **Testing**，非基础 profile scope 的 refresh token 通常 7 天过期；用于长期运行需完成适用的 production 配置/要求。
+3. 外部 OAuth 应用若处于 **Testing**，非基础 profile scope 的 refresh token 通常 7 天过期；用于长期运行需完成适用的 production 配置/要求。`docs/` 提供公开应用说明、隐私政策及使用条款；可通过 GitHub Pages 的 `main /docs` 发布，并将实际网址填入 Branding。按 Google 要求验证域名，再切换发布状态；网站只包含文档。
 4. 准备本地 `authorized_user` JSON，含 `client_id`、`client_secret`、`refresh_token`。不提交此文件。此实现使用用户 OAuth，不使用个人 My Drive 中没有存储配额的 service account。
 
 如果已有两边凭证，可在保存旧 Oura 凭证的电脑上运行一次（之后电脑无需在线）：
@@ -137,7 +137,7 @@ gh run watch RUN_ID --repo esdrtf/oura-personal-integration --exit-status
 | `Missing secret/configuration` | 检查 `oura-export` 环境 Secrets 和 Variable；不要把密钥贴进日志 |
 | `Cannot persist Oura tokens` | 检查 PAT 到期、仓库限制及 Environments 写权限；发生于刷新前则没有消耗 token |
 | `Oura refresh failed` | 旧 token 失效、被其他程序消费，或刷新响应丢失；重新 OAuth 授权后替换环境 token JSON |
-| Google OAuth 400/401 | 检查 refresh token、client 配对、授权撤销或 Testing 7 天有效期 |
+| OAuth 400/401 | 日志只显示白名单中的标准错误代码；`invalid_client` 检查 ID/secret 配对，`invalid_grant` 检查过期/已消费的授权码、redirect、PKCE、refresh token 或授权撤销 |
 | collection HTTP 403/404 | 检查 Oura scope、会员/API 支持；旧数据保留，不标为成功 |
 | 429/5xx/网络错误 | 数据请求最多 5 次指数退避，尊重 Retry-After（单次最多 60 秒）；耗尽后 job 失败 |
 | `Manifest changed` | 停止其他写入者，再重跑相同范围 |

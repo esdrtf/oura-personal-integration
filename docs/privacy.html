@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy — Oura Drive Export</title>
+<style>body{font:18px/1.65 system-ui,sans-serif;max-width:48rem;margin:4rem auto;padding:0 1.5rem;color:#17302d}a{color:#07665a}</style>
+<main>
+<a href="./">Oura Drive Export</a>
+<h1>Privacy policy</h1>
+<p>Updated October 21, 2026. This policy describes the personal-use exporter in the linked source repository.</p>
+<h2>Data and purpose</h2>
+<p>The exporter reads the owner's authorized Oura records, including sleep, activity, readiness, heart and other wellness measurements, workouts, tags, and account/profile information available under the granted scopes. It reads existing export files and metadata in the configured Google Drive folder and writes raw responses, normalized records, summaries, and a manifest there. These operations support personal archiving and analysis.</p>
+<h2>Access, processing, and storage</h2>
+<p>The Google OAuth Drive scope can authorize access across the account's Drive; the exporter code limits its operations to the configured archive and referenced export files. Oura and Google issue the credentials. Credentials are stored in encrypted GitHub Actions environment Secrets. GitHub-hosted runners temporarily process the records; Google Drive stores the retained exports. The exporter does not publish health data in the public repository, logs, website, or workflow artifacts, and does not change Drive sharing permissions.</p>
+<p>The exporter does not sell data, use it for advertising, or train AI models. An owner may separately authorize a health coach or another application to read their Drive exports; those services have their own data handling practices.</p>
+<h2>Retention and control</h2>
+<p>Historical exports remain until the owner removes them. Deleting a source record does not automatically remove archived copies. The owner can stop the GitHub Actions workflow, delete its Secrets, revoke the application in Oura or Google account settings, and remove the Drive archive and versions. Revocation stops future access but does not itself erase existing exports.</p>
+<h2>Website and contact</h2>
+<p>This documentation site has no application cookies, analytics scripts, or input forms. GitHub Pages may process ordinary hosting request information under GitHub's privacy statement. For non-sensitive project questions, use the <a href="https://github.com/esdrtf/oura-personal-integration/issues">repository issue tracker</a>. Never post health data, credentials, or authorization URLs in public issues.</p>
+</main>
+</html>

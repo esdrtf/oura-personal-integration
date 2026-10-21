@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oura Drive Export</title>
+<style>body{font:18px/1.65 system-ui,sans-serif;max-width:48rem;margin:4rem auto;padding:0 1.5rem;color:#17302d}a{color:#07665a}nav{display:flex;gap:1.5rem;flex-wrap:wrap}</style>
+<main>
+<h1>Oura Drive Export</h1>
+<p>A personal integration that archives the owner's authorized Oura data in their Google Drive. A scheduled GitHub Actions workflow retains original API responses, creates deduplicated JSONL collections, and generates a daily CSV summary.</p>
+<p>This is a private-use automation with public source code, not a service accepting accounts from the public. The website contains documentation only; it has no sign-in form, tracking scripts, credentials, or health records.</p>
+<p>Google Drive access lets the exporter read the existing archive and write updated exports in the configured folder. Health records are processed temporarily on GitHub-hosted runners and retained in the owner's Drive. The exporter does not change file sharing permissions.</p>
+<nav aria-label="Project information"><a href="privacy.html">Privacy policy</a><a href="terms.html">Terms of use</a><a href="https://github.com/esdrtf/oura-personal-integration">Source and instructions</a></nav>
+<p>Unofficial integration; not affiliated with Oura or Google.</p>
+</main>
+</html>
