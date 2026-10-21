@@ -67,7 +67,7 @@ GitHub 仓库 Settings → Environments 创建 **`oura-export`**。将以下全�
 
 Oura refresh token **仅能用一次**。运行前先用原值测试 secret 写权限，再刷新，并立即把新 access/refresh token JSON 存回同一个环境 secret。OAuth 刷新请求不自动重试；网络结果不确定时停止，可能需要重新授权。不存在跨 Oura 与 GitHub 的原子事务：若刷新成功后 GitHub 持续不可用，仍可能需要重新授权。
 
-不要同时让旧 MCP 和 Actions 消费同一个 refresh token；先停旧消费者，或为云端导出单独完成一份授权。请求覆盖所需 scopes：`personal daily heartrate workout tag session spo2`；email 仅在确需导出邮箱时授予。权限不足在 manifest 明确报错。
+不要同时让旧 MCP 和 Actions 消费同一个 refresh token；先停旧消费者，或为云端导出单独完成一份授权。请求覆盖所需 scopes：`personal daily heartrate workout tag session spo2 ring_configuration stress heart_health`（以应用授权页实际提供为准）；email 仅在确需导出邮箱时授予。权限不足在 manifest 明确报错。
 
 使用 job-level concurrency 且 `cancel-in-progress: false`，避免中途取消 token 轮换。环境 secret 在 **job 开始**时加载，避免排队工作流读取旧的 repository secret 快照。不要设置会阻止每日无人值守执行的环境人工审批规则；只允许可信 `main` 部署。不要给 fork/PR job 提供这些 secrets。
 
@@ -90,6 +90,18 @@ python3 configure_secrets.py --google-authorized-user /absolute/path/to/google-a
 ```
 
 辅助脚本读取 `~/.oura-mcp/config.json`、`~/.oura-mcp/tokens.json`；缺 client 值时隐藏输入。支持 `--oura-config`、`--oura-tokens` 指定其他路径。所有敏感值经 stdin 交给 `gh secret set`，不进入命令参数或日志。脚本不提取浏览器 cookies，不读取 ChatGPT 连接凭证，不代替用户授权。
+
+### 没有旧 refresh token 时：一次性云端授权兑换
+
+`Initialize OAuth credentials` 工作流可在 GitHub runner 内完成授权码兑换，避免把客户端密钥下载到其他电脑。先配置对应 provider 的 client ID/secret 和 `GH_SECRETS_TOKEN`。
+
+1. 由授权发起方生成独立的随机 `state` 和 PKCE verifier（43–128 字符），在官方授权 URL 中传入 `state`、`code_challenge=BASE64URL(SHA256(verifier))`、`code_challenge_method=S256`。Google 使用 Desktop app、loopback redirect、`access_type=offline` 和 `prompt=consent`；Oura 使用应用已经登记的 redirect。
+2. 用户在官方授权页确认权限。保留完整的 loopback callback URL；它含一次性授权码，不要贴入聊天、issue、日志或 workflow input。授权发起方应尽快处理，授权码会过期。
+3. 将 `provider`（`oura` 或 `google`）、`callback_url`、原始 `redirect_uri`、预期 `state`、`code_verifier` 组成 JSON，保存为 `oura-export` 环境 Secret **`OAUTH_BOOTSTRAP_JSON`**。这些字段必须来自同一次授权。
+4. 手动运行 **Initialize OAuth credentials**，选择匹配的 provider。脚本先验证 callback/state，再确认 Secrets 写权限，授权码只兑换一次；新凭证直接保存为 `OURA_TOKEN_JSON` 或 `GOOGLE_REFRESH_TOKEN`，成功后删除临时 Secret。重复失败时重新发起授权，不盲目重复兑换旧码。
+5. 两边初始化成功后，再运行正常 backfill。初始化工作流不读写健康归档；它与导出共用 concurrency，避免 token 竞争。云端保存有重试，仍无法把 OAuth 发行与 GitHub 写入变成跨服务原子事务。
+
+需要重新授权时也可使用本流程。不要重置原应用 client secret 来代替找回凭证，除非已经确认其他消费者的影响。
 
 ## 首次补数与验收
 

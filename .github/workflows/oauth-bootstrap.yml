@@ -1,0 +1,39 @@
+name: Initialize OAuth credentials
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: 'Provider whose consent callback is in OAUTH_BOOTSTRAP_JSON'
+        type: choice
+        options:
+          - oura
+          - google
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: oura-export
+    concurrency:
+      group: oura-drive-export
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Exchange once and save refresh credential
+        env:
+          PROVIDER: ${{ inputs.provider }}
+          OAUTH_BOOTSTRAP_JSON: ${{ secrets.OAUTH_BOOTSTRAP_JSON }}
+          OURA_CLIENT_ID: ${{ secrets.OURA_CLIENT_ID }}
+          OURA_CLIENT_SECRET: ${{ secrets.OURA_CLIENT_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GH_SECRETS_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+        run: python3 bootstrap_oauth.py "$PROVIDER"
